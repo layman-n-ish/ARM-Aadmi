@@ -1,7 +1,6 @@
 ; Implementation of Digital Logic Gates using Neural Networks
 
-	;THUMB
-	;PRESERVE8
+	PRESERVE8
 	AREA  nn_logic_gates, CODE,READONLY
 	IMPORT printMsg
 	IMPORT printErrorMsg
@@ -91,7 +90,7 @@ __sigmoid FUNCTION
 
 __val FUNCTION
 	 PUSH {LR}
-	 BL __exp;					Compute e^-x
+	 BL get_exp;				Compute e^-x
 	 BL __sigmoid;				Sigmoid function output in S9
 	 
 	 VLDR.F32 S14,= 0.5;		Store 0.5 in S14
