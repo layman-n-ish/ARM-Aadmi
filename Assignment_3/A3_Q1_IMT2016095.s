@@ -77,29 +77,33 @@ stop B stop
 
 ;----------------------------------------------------------------------------------------
 
-__sigmoid FUNCTION
-	 ;Compute sigmoid function e^-x in S11 and Sigmoid function output in S9
-	 PUSH {LR};
-	 VLDR.F32 S8,= 1;			Store #1 for calculations
-	 VADD.F32 S9,S11,S8;		S9 has (e^-x)+1
-	 VDIV.F32 S9,S8,S9;			S9 has 1 / (e^-x)+1		-> 	Value of Y - sigmoid function
+get_sigmoid FUNCTION
+	 
+	 ; Compute sigmoid function e^-x in S7 and Sigmoid function output in S9
+	 
+	 PUSH {LR}
+	 VLDR.F32 S8, =1			
+	 VADD.F32 S9, S7, S8			; compute (e^-x)+1
+	 VDIV.F32 S9, S8, S9			; S9 has 1/(e^-x)+1
 	 POP {LR};	
 	 BX lr;
+	 
 	ENDFUNC
 ;---------------------------------------------------------------------------------------
 
-__val FUNCTION
+apply_sigmoid FUNCTION
 	 PUSH {LR}
-	 BL get_exp;				Compute e^-x
-	 BL __sigmoid;				Sigmoid function output in S9
+	 BL get_exp						; Compute e^-x
+	 BL get_sigmoid					; Sigmoid function output in S9
 	 
-	 VLDR.F32 S14,= 0.5;		Store 0.5 in S14
-	 VCMP.F32 S9,S14;			Compare current Y and 0.5		
+	 VLDR.F32 S14, =0.5				
+	 VCMP.F32 S9,S14				; Compare NN output with 0.5		
 	 VMRS    APSR_nzcv, FPSCR;
-	 MOVGT	R0, #1;				If Y > 0.5, output is 1
-	 MOVLT	R0, #0;				If Y < 0.5, output is 0
+	 MOVGT	R0, #1					; If Y > 0.5, output is 1
+	 MOVLT	R0, #0					; If Y < 0.5, output is 0
 	 POP {LR}
 	 BX lr
+	 
 	 ENDFUNC	 
 ;--------------------------------------------------------------------------------------------------
 	
@@ -107,20 +111,21 @@ __val FUNCTION
 
 __and FUNCTION
 	 PUSH {LR};	 
-	 VLDR.F32 S4,= 2;			Weight 1
-	 VLDR.F32 S5,= 2;			Weight 2
-	 VLDR.F32 S6,= 2;			Weight 3
-	 VLDR.F32 S7,= -5;		Bias
+	 VLDR.F32 S4, = 2				; W1
+	 VLDR.F32 S5, = 2				; W2
+	 VLDR.F32 S6, = 2				; W3
+	 VLDR.F32 S7, = -5				; Bias
 	 
-	 VMUL.F32 S0,S0,S4;			A1*W1
-	 VMUL.F32 S1,S1,S5;			A2*W2
-	 VMUL.F32 S2,S2,S6;			A3*W3
-	 VADD.F32 S3,S0,S1;			A1*W1 + A2*W2 
-	 VADD.F32 S3,S3,S2;			A1*W1 + A2*W2 + A3*W3 
-	 VADD.F32 S3,S3,S7;			A1*W1 + A2*W2 + A3*W3 + B
+	 VMUL.F32 S0, S0, S4			; A1*W1
+	 VMUL.F32 S1, S1, S5			; A2*W2
+	 VMUL.F32 S2, S2, S6			; A3*W3
+	 VADD.F32 S3, S0, S1			; A1*W1 + A2*W2 
+	 VADD.F32 S3, S3, S2			; A1*W1 + A2*W2 + A3*W3 
+	 VADD.F32 S3, S3, S7			; A1*W1 + A2*W2 + A3*W3 + Bias
 	 
-	 VMOV.F32 S10,S3;			S10 has the value of x
-	 BL __val;
+	 VNEG.F32 S3, S3
+	 VMOV.F32 S0, S3				; S0 has the value of x
+	 BL apply_sigmoid;
 	 
 	 POP {LR};	
 	 BX lr;
@@ -131,20 +136,21 @@ __and FUNCTION
 
 __or FUNCTION
 	 PUSH {LR};	 
-	 VLDR.F32 S4,= 2;			Weight 1
-	 VLDR.F32 S5,= 2;			Weight 2
-	 VLDR.F32 S6,= 2;			Weight 3
-	 VLDR.F32 S7,= -1;			Bias
+	 VLDR.F32 S4,= 2				; W1
+	 VLDR.F32 S5,= 2				; W2
+	 VLDR.F32 S6,= 2				; W3
+	 VLDR.F32 S7,= -1				; Bias
 	 
-	 VMUL.F32 S0,S0,S4;			A1*W1
-	 VMUL.F32 S1,S1,S5;			A2*W2
-	 VMUL.F32 S2,S2,S6;			A3*W3
-	 VADD.F32 S3,S0,S1;			A1*W1 + A2*W2 
-	 VADD.F32 S3,S3,S2;			A1*W1 + A2*W2 + A3*W3 
-	 VADD.F32 S3,S3,S7;			A1*W1 + A2*W2 + A3*W3 + B
+	 VMUL.F32 S0,S0,S4				; A1*W1
+	 VMUL.F32 S1,S1,S5				; A2*W2
+	 VMUL.F32 S2,S2,S6				; A3*W3
+	 VADD.F32 S3,S0,S1				; A1*W1 + A2*W2 
+	 VADD.F32 S3,S3,S2				; A1*W1 + A2*W2 + A3*W3 
+	 VADD.F32 S3,S3,S7				; A1*W1 + A2*W2 + A3*W3 + Bias
 	 
-	 VMOV.F32 S10,S3;			S10 has the value of x
-	 BL __val;
+	 VNEG.F32 S3, S3
+	 VMOV.F32 S0, S3				; S0 has the value of x
+	 BL apply_sigmoid;
 	 POP {LR};	
 	 BX lr;
 	 ENDFUNC
@@ -154,21 +160,15 @@ __or FUNCTION
 
 __not FUNCTION
 	 PUSH {LR};	 
-	 VLDR.F32 S4,= -2;			Weight 1
-	 ;VLDR.F32 S5,= 1;			Weight 2
-	 ;VLDR.F32 S6,= 1;			Weight 3
-	 VLDR.F32 S7,= 1;			Bias
+	 VLDR.F32 S4,= -2			; W1
+	 VLDR.F32 S7,= 1			; Bias
 	 
-	 VMUL.F32 S0,S0,S4;			A1*W1
-	 ;VMUL.F32 S1,S1,S5;			A2*W2
-	 ;VMUL.F32 S2,S2,S6;			A3*W3
-	 ;VADD.F32 S3,S0,S1;			A1*W1 + A2*W2 
-	 ;VADD.F32 S3,S3,S2;			A1*W1 + A2*W2 + A3*W3 
-	 ;VADD.F32 S3,S3,S7;			A1*W1 + A2*W2 + A3*W3 + B
-	 VADD.F32 S3,S0,S7;			A1*W1 + B
+	 VMUL.F32 S0,S0,S4			; A1*W1
+	 VADD.F32 S3,S0,S7			; A1*W1 + Bias
 	 
-	 VMOV.F32 S10,S3;			S10 has the value of x
-	 BL __val;
+	 VNEG.F32 S3, S3
+	 VMOV.F32 S0,S3				; S0 has the value of x
+	 BL apply_sigmoid;
 	 POP {LR};	
 	 BX lr;
 	 ENDFUNC
@@ -178,7 +178,7 @@ __not FUNCTION
 
 __xor FUNCTION
 	
-	PUSH {LR};
+	PUSH {LR}
 	 ; Store the inputs 
 	 VMOV.F32 S19,S0;			S19 has A1
 	 VMOV.F32 S20,S1;			S20 has A2
@@ -249,69 +249,71 @@ __xor FUNCTION
 	 
 	 BL __or;					Computes AND for R7+R6+R5+R4
 
-	 POP {LR};		
-	 BX lr;
+	 POP {LR}	
+	 BX lr
 	 ENDFUNC
 
 ;----------------------------------------------------------------------------------------
 ;		logic XNOR
 
 __xnor FUNCTION
-	 PUSH {LR};		
+	 PUSH {LR}	
 
-	 BL __xor;
-	 VMOV.F32 S0,R0;			Move the count in R4 to S0 (floating point register)
-     VCVT.F32.S32 S0,S0; 		Convert into signed 32bit number
-	 BL __not;
+	 BL __xor
+	 VMOV.F32 S0,R0				; Move the count in R4 to S0 (floating point register)
+     VCVT.F32.S32 S0,S0			
+	 BL __not
 	 
-	 POP {LR};	
-	 BX lr;
+	 POP {LR}	
+	 BX lr
 	 ENDFUNC
 
 ;----------------------------------------------------------------------------------------
 ;		logic NAND
 
 __nand FUNCTION
-	 PUSH {LR};	 
-	 VLDR.F32 S4,= -2;			Weight 1
-	 VLDR.F32 S5,= -2;			Weight 2
-	 VLDR.F32 S6,= -2;			Weight 3
-	 VLDR.F32 S7,= 5;			Bias
-	 
-	 VMUL.F32 S0,S0,S4;			A1*W1
-	 VMUL.F32 S1,S1,S5;			A2*W2
-	 VMUL.F32 S2,S2,S6;			A3*W3
-	 VADD.F32 S3,S0,S1;			A1*W1 + A2*W2 
-	 VADD.F32 S3,S3,S2;			A1*W1 + A2*W2 + A3*W3 
-	 VADD.F32 S3,S3,S7;			A1*W1 + A2*W2 + A3*W3 + B
-	 
-	 VMOV.F32 S10,S3;			S10 has the value of x
-	 BL __val;
-	 POP {LR};	
-	 BX lr;
+	 PUSH {LR}
+	 VLDR.F32 S4, =-2				; W1
+	 VLDR.F32 S5, =-2				; W2
+	 VLDR.F32 S6, =-2				; W3
+	 VLDR.F32 S7, =5				; Bias
+	                            
+	 VMUL.F32 S0, S0, S4			; A1*W1
+	 VMUL.F32 S1, S1, S5			; A2*W2
+	 VMUL.F32 S2, S2, S6			; A3*W3
+	 VADD.F32 S3, S0, S1			; A1*W1 + A2*W2 
+	 VADD.F32 S3, S3, S2			; A1*W1 + A2*W2 + A3*W3 
+	 VADD.F32 S3, S3, S7			; A1*W1 + A2*W2 + A3*W3 + Bias
+	                            
+	 VNEG.F32 S3, S3            
+	 VMOV.F32 S0, S3;				; S0 has the value of x
+	 BL apply_sigmoid;
+	 POP {LR}
+	 BX lr
 	 ENDFUNC
 
 ;----------------------------------------------------------------------------------------
 ;		logic NOR
 
 __nor FUNCTION
-	 PUSH {LR};	 
-	 VLDR.F32 S4,= -10;			Weight 1
-	 VLDR.F32 S5,= -10;			Weight 2
-	 VLDR.F32 S6,= -10;			Weight 3
-	 VLDR.F32 S7,= 5;			Bias
-	 
-	 VMUL.F32 S0,S0,S4;			A1*W1
-	 VMUL.F32 S1,S1,S5;			A2*W2
-	 VMUL.F32 S2,S2,S6;			A3*W3
-	 VADD.F32 S3,S0,S1;			A1*W1 + A2*W2 
-	 VADD.F32 S3,S3,S2;			A1*W1 + A2*W2 + A3*W3 
-	 VADD.F32 S3,S3,S7;			A1*W1 + A2*W2 + A3*W3 + B
-	 
-	 VMOV.F32 S10,S3;			S10 has the value of x
-	 BL __val;
-	 POP {LR};	
-	 BX lr;
+	 PUSH {LR} 
+	 VLDR.F32 S4, =-10				; W1
+	 VLDR.F32 S5, =-10				; W2
+	 VLDR.F32 S6, =-10				; W3
+	 VLDR.F32 S7, =5				; Bias
+	                            
+	 VMUL.F32 S0, S0, S4			; A1*W1
+	 VMUL.F32 S1, S1, S5			; A2*W2
+	 VMUL.F32 S2, S2, S6			; A3*W3
+	 VADD.F32 S3, S0, S1			; A1*W1 + A2*W2 
+	 VADD.F32 S3, S3, S2			; A1*W1 + A2*W2 + A3*W3 
+	 VADD.F32 S3, S3, S7			; A1*W1 + A2*W2 + A3*W3 + Bias
+	          
+	 VNEG.F32 S3, S3   
+	 VMOV.F32 S0, S3				; S0 has the value of x
+	 BL apply_sigmoid           
+	 POP {LR}	
+	 BX lr
 	 ENDFUNC
 	  		 
 ;--------------------------------------------------------------------------------------------------
